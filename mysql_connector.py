@@ -125,7 +125,7 @@ def get_mysql_client():
     )
 
 
-# Fonctions de transformation des données ERASMIP
+# Fonctions de transformation des données EFP
 def transformer_date(date_val):
     """Transforme une date au format ISO8601"""
     if not date_val or date_val == "None" or date_val == "null":
@@ -221,83 +221,6 @@ def rechercher_dossier_par_nom_et_numero(nom, numero_dossier):
         traceback.print_exc()
         return False, f"Exception: {str(e)}"
 
-def obtenir_etablissements_par_nom(nom):
-    """
-    Récupère la liste des établissements associés à un nom d'apprenant donné.
-    
-    Args:
-        nom (str): Nom de famille de l'apprenant
-    
-    Returns:
-        tuple: (success, result) où result est la liste des établissements ou un message d'erreur
-    """
-    try:
-        client = get_mysql_client()
-        
-        if not client.connect():
-            return False, "Impossible de se connecter à la base de données"
-        
-        # Recherche des établissements pour ce nom
-        query = f"""
-        SELECT DISTINCT {COL_EPLEFPA} 
-        FROM {MYSQL_TABLE} 
-        WHERE {COL_NOM} = %s AND {COL_EPLEFPA} IS NOT NULL AND {COL_EPLEFPA} != ''
-        ORDER BY {COL_EPLEFPA}
-        """
-        
-        results = client.execute_query(query, (nom,))
-        client.disconnect()
-        
-        if not results or len(results) == 0:
-            return False, "Aucun établissement trouvé pour ce nom d'apprenant."
-        
-        # Extraire la liste des établissements
-        etablissements = [r.get(COL_EPLEFPA) for r in results if r.get(COL_EPLEFPA)]
-        
-        return True, etablissements
-    
-    except Exception as e:
-        print(f"Exception lors de la récupération des établissements par nom: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False, f"Exception: {str(e)}"
-
-def obtenir_liste_etablissements():
-    """
-    Récupère la liste des établissements disponibles dans la base de données.
-    
-    Returns:
-        tuple: (success, result) où result est la liste des établissements ou un message d'erreur
-    """
-    try:
-        client = get_mysql_client()
-        
-        if not client.connect():
-            return False, "Impossible de se connecter à la base de données"
-        
-        query = f"""
-        SELECT DISTINCT {COL_EPLEFPA} 
-        FROM {MYSQL_TABLE} 
-        WHERE {COL_EPLEFPA} IS NOT NULL AND {COL_EPLEFPA} != ''
-        ORDER BY {COL_EPLEFPA}
-        """
-        
-        results = client.execute_query(query)
-        client.disconnect()
-        
-        if not results:
-            return False, "Aucun établissement trouvé dans la base de données."
-        
-        # Extraire la liste des établissements
-        etablissements = [r.get(COL_EPLEFPA) for r in results if r.get(COL_EPLEFPA)]
-        
-        return True, etablissements
-    
-    except Exception as e:
-        print(f"Exception lors de la récupération des établissements: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False, f"Exception: {str(e)}"
 
 def rechercher_dossier_par_nom_et_etablissement(nom, etablissement, numero_dossier=None):
     """
@@ -386,42 +309,140 @@ def rechercher_dossier_par_nom_et_etablissement(nom, etablissement, numero_dossi
         traceback.print_exc()
         return False, f"Exception: {str(e)}"
 
-def valider_combinaison_nom_etablissement(nom, etablissement, numero_dossier=None):
+
+def obtenir_liste_etablissements():
     """
-    Vérifie si la combinaison nom + établissement existe dans la base MySQL
-    et récupère les données pour ERASMIP. Le numéro de dossier est optionnel.
-    
-    Args:
-        nom (str): Nom de famille
-        etablissement (str): Nom de l'établissement (EPLEFPA)
-        numero_dossier (str, optional): Numéro du dossier, optionnel
+    Récupère la liste des établissements disponibles dans la base de données.
     
     Returns:
-        tuple: (success, result) où result est un dictionnaire de données mappées ou un message d'erreur
+        tuple: (success, result) où result est la liste des établissements ou un message d'erreur
     """
-    print(f"Validation de la combinaison nom: {nom}, établissement: {etablissement}, numéro: {numero_dossier or 'Non fourni'}")
+    try:
+        client = get_mysql_client()
+        
+        if not client.connect():
+            return False, "Impossible de se connecter à la base de données"
+        
+        query = f"""
+        SELECT DISTINCT {COL_EPLEFPA} 
+        FROM {MYSQL_TABLE} 
+        WHERE {COL_EPLEFPA} IS NOT NULL AND {COL_EPLEFPA} != ''
+        ORDER BY {COL_EPLEFPA}
+        """
+        
+        results = client.execute_query(query)
+        client.disconnect()
+        
+        if not results:
+            return False, "Aucun établissement trouvé dans la base de données."
+        
+        # Extraire la liste des établissements
+        etablissements = [r.get(COL_EPLEFPA) for r in results if r.get(COL_EPLEFPA)]
+        
+        return True, etablissements
     
-    # Rechercher le dossier
-    success_dossier, result_dossier = rechercher_dossier_par_nom_et_etablissement(nom, etablissement, numero_dossier)
+    except Exception as e:
+        print(f"Exception lors de la récupération des établissements: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Exception: {str(e)}"
+
+def obtenir_etablissements_par_nom(nom):
+    """
+    Récupère la liste des établissements associés à un nom d'apprenant donné.
     
-    if not success_dossier:
-        return False, result_dossier
+    Args:
+        nom (str): Nom de famille de l'apprenant
     
-    # Vérifier si plusieurs dossiers ont été trouvés
-    if isinstance(result_dossier, dict) and result_dossier.get("multiple", False):
-        return True, result_dossier  # Renvoyer la liste des dossiers
+    Returns:
+        tuple: (success, result) où result est la liste des établissements ou un message d'erreur
+    """
+    try:
+        client = get_mysql_client()
+        
+        if not client.connect():
+            return False, "Impossible de se connecter à la base de données"
+        
+        # Recherche des établissements pour ce nom
+        query = f"""
+        SELECT DISTINCT {COL_EPLEFPA} 
+        FROM {MYSQL_TABLE} 
+        WHERE {COL_NOM} = %s AND {COL_EPLEFPA} IS NOT NULL AND {COL_EPLEFPA} != ''
+        ORDER BY {COL_EPLEFPA}
+        """
+        
+        results = client.execute_query(query, (nom,))
+        client.disconnect()
+        
+        if not results or len(results) == 0:
+            return False, "Aucun établissement trouvé pour ce nom d'apprenant."
+        
+        # Extraire la liste des établissements
+        etablissements = [r.get(COL_EPLEFPA) for r in results if r.get(COL_EPLEFPA)]
+        
+        return True, etablissements
     
-    # Extraire les champs du dossier
-    dossier_fields = result_dossier.get("fields", {})
+    except Exception as e:
+        print(f"Exception lors de la récupération des établissements par nom: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Exception: {str(e)}"
+
+def rechercher_apprenants_par_date_et_etablissement(date_depart, etablissement):
+    """
+    Recherche les apprenants par date de départ et établissement.
     
-    # Ajouter l'établissement aux données mappées
-    mapped_data = mapper_donnees_mobilite(dossier_fields)
-    mapped_data["etablissement"] = etablissement
+    Args:
+        date_depart (str): Date de départ dans n'importe quel format supporté
+        etablissement (str): Nom de l'établissement (EPLEFPA)
+        
+    Returns:
+        tuple: (success, result) où result est la liste des apprenants ou un message d'erreur
+    """
+    try:
+        # Transformer la date au format ISO8601 pour la requête SQL
+        date_depart_iso = transformer_date(date_depart)
+        
+        if not date_depart_iso:
+            return False, "Format de date non valide"
+        
+        print(f"Recherche d'apprenants avec date de départ: {date_depart_iso} et établissement: {etablissement}")
+        client = get_mysql_client()
+        
+        if not client.connect():
+            return False, "Impossible de se connecter à la base de données"
+        
+        # Recherche des apprenants pour cette date et cet établissement
+        query = f"""
+        SELECT * 
+        FROM {MYSQL_TABLE} 
+        WHERE {COL_DATE_DEPART} = %s AND {COL_EPLEFPA} = %s
+        """
+        
+        results = client.execute_query(query, (date_depart_iso, etablissement))
+        client.disconnect()
+        
+        if not results:
+            return False, "Aucun apprenant trouvé pour cette date et cet établissement."
+        
+        # Préparer la liste des apprenants
+        apprenants = []
+        for dossier in results:
+            # Mapper les données pour l'API
+            mapped_data = mapper_donnees_mobilite(dossier)
+            # Ajouter l'ID et le numéro de dossier pour référence
+            mapped_data["id"] = dossier.get(COL_ID)
+            mapped_data["dossier_number"] = dossier.get(COL_DOSSIER_NUMBER)
+            apprenants.append(mapped_data)
+        
+        print(f"Trouvé {len(apprenants)} apprenant(s)")
+        return True, apprenants
     
-    # Log complet des données mappées
-    print(f"Données mappées complètes: {json.dumps(mapped_data, default=str)}")
-    
-    return True, mapped_data
+    except Exception as e:
+        print(f"Exception lors de la recherche des apprenants: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Exception: {str(e)}"
 
 
 def mapper_donnees_mobilite(dossier_fields):
@@ -446,6 +467,7 @@ def mapper_donnees_mobilite(dossier_fields):
     date_retour = dossier_fields.get(COL_DATE_RETOUR)
     pays_accueil = dossier_fields.get(COL_PAYS_ACCUEIL, "")
     statut_participant = dossier_fields.get(COL_STATUT_PARTICIPANT, "")
+    etablissement = dossier_fields.get(COL_EPLEFPA, "")
     
     # Log pour débogage des dates
     print(f"Date de naissance brute: {date_naissance}")
@@ -489,6 +511,7 @@ def mapper_donnees_mobilite(dossier_fields):
         "date_retour": date_retour,
         "pays_accueil": pays_accueil,
         "statut_participant": statut_participant,
+        "etablissement": etablissement,  # Ajout de l'établissement
         
         # Données transformées (pour l'affichage et le mapping)
         "mobilite_hybride": mobilite_hybride,
@@ -505,6 +528,43 @@ def mapper_donnees_mobilite(dossier_fields):
         print(f"  {k}: {v}")
     
     return data_mappee
+
+
+def valider_combinaison_nom_etablissement(nom, etablissement, numero_dossier=None):
+    """
+    Vérifie si la combinaison nom + établissement existe dans la base MySQL
+    et récupère les données pour ERASMIP. Le numéro de dossier est optionnel.
+    
+    Args:
+        nom (str): Nom de famille
+        etablissement (str): Nom de l'établissement (EPLEFPA)
+        numero_dossier (str, optional): Numéro du dossier, optionnel
+    
+    Returns:
+        tuple: (success, result) où result est un dictionnaire de données mappées ou un message d'erreur
+    """
+    print(f"Validation de la combinaison nom: {nom}, établissement: {etablissement}, numéro: {numero_dossier or 'Non fourni'}")
+    
+    # Rechercher le dossier
+    success_dossier, result_dossier = rechercher_dossier_par_nom_et_etablissement(nom, etablissement, numero_dossier)
+    
+    if not success_dossier:
+        return False, result_dossier
+    
+    # Vérifier si plusieurs dossiers ont été trouvés
+    if isinstance(result_dossier, dict) and result_dossier.get("multiple", False):
+        return True, result_dossier  # Renvoyer la liste des dossiers
+    
+    # Extraire les champs du dossier
+    dossier_fields = result_dossier.get("fields", {})
+    
+    # Mapper les données pour ERASMIP
+    mapped_data = mapper_donnees_mobilite(dossier_fields)
+    
+    # Log complet des données mappées
+    print(f"Données mappées complètes: {json.dumps(mapped_data, default=str)}")
+    
+    return True, mapped_data
 
 
 def valider_combinaison_nom_et_numero(nom, numero_dossier):
@@ -579,7 +639,7 @@ if __name__ == "__main__":
     if success:
         # Test avec des données factices
         print("\n=== Test de recherche avec des données factices ===")
-        success, result = valider_combinaison_nom_et_numero("STEFANIDES", "12345678")  # Exemple de données de test
+        success, result = valider_combinaison_nom_etablissement("STEFANIDES", "EPLEFPA de Test")  # Exemple
         print(f"Résultat: {'Succès' if success else 'Échec'}")
         if success:
             print("Données récupérées:")

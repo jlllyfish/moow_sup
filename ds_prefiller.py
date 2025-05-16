@@ -74,30 +74,29 @@ def generate_prefilled_url(data_dict):
     print(f"Date de naissance après transformation: {date_naissance}")
     print(f"Date de départ après transformation: {date_depart}")
     print(f"Date de retour après transformation: {date_retour}")
+    print(f"Mobilité apprenant: {mobilite_apprenant}")
     
-    # Définir le statut de la mobilité hybride (même logique que script original)
-    mobilite_hybride = "Oui" if format_mobilite == "Mobilité hybride" else "Non"
+    # Définir le statut de la mobilité hybride (convertir en true/false pour les champs booléens)
+    mobilite_hybride = "true" if format_mobilite == "Mobilité hybride" else "false"
     
-    # Déterminer le type de mobilité (même logique que script original)
-    type_mobilite_val = ""
-    if mobilite_apprenant == "Mobilité de stage (SMT)":
-        type_mobilite_val = "Stage"
-    elif mobilite_apprenant == "Mobilité d'étude (SMS)":
-        type_mobilite_val = "Etudes"
+    # Logique simplifiée pour le type de mobilité
+    # Pour ce champ, on utilise toujours "Stage" comme valeur par défaut,
+    # quelle que soit la valeur de mobilite_apprenant
+    type_mobilite_val = "Stage"
+    
+    # Logique pour valeur_mobilite_apprenant
+    # Les deux valeurs possibles sont "Mobilité d'apprentissage de courte durée" et "Concours de compétence"
+    if mobilite_apprenant == "Concours de compétence":
+        valeur_mobilite_apprenant = "Concours de compétence"
     else:
-        # Valeur par défaut pour éviter les None
-        type_mobilite_val = "Stage"
-    
-    # Mappage du type de mobilité (même logique que script original)
-    valeur_mobilite_apprenant = None
-    if mobilite_apprenant == 'Mobilité de stage (SMT)':
-        valeur_mobilite_apprenant = 'Mobilité d\'apprentissage de courte durée'
-    else:
-        # Valeur par défaut
-        valeur_mobilite_apprenant = 'Mobilité d\'apprentissage de courte durée'
+        # Valeur par défaut ou si mobilité de stage
+        valeur_mobilite_apprenant = "Mobilité d'apprentissage de courte durée"
     
     # Déterminer si l'apprenant est apprenti (même logique que script original)
     est_apprenti = "true" if statut_participant and statut_participant.lower() == "apprenti" else "false"
+    
+    # Déterminer le statut en fonction de est_apprenti
+    statut_apprenant = "Apprenti" if est_apprenti == "true" else "Élève"
     
     # Construction du dictionnaire de données EXACT comme dans le script original
     # Reproduire exactement la structure pour être sûr que ça fonctionne
@@ -108,16 +107,16 @@ def generate_prefilled_url(data_dict):
         "champ_Q2hhbXAtNzg1Mjcy": prenom,    # Prénom
         "champ_Q2hhbXAtNjI2NjMx": date_naissance,  # Date naissance
         "champ_Q2hhbXAtMjc4NDc3MQ": valeur_mobilite_apprenant,  # Mobilité apprenant
-        "champ_Q2hhbXAtMzAwMjA2MA": est_apprenti,           # Est apprenti (Oui/Non)
-        "champ_Q2hhbXAtMTAzMjQ0NQ": "Étudiant",             # Valeur fixe "Étudiant"
-        "champ_Q2hhbXAtNDcwODc3MA": "true",                  # Valeur fixe "true"
-        "champ_Q2hhbXAtNDcwODc3MQ": "true",                  # Valeur fixe "true"
-        "champ_Q2hhbXAtMjE0MTIxNg": mobilite_hybride,       # Mobilité hybride (Oui/Non)
-        "champ_Q2hhbXAtNzEyMjc0": type_mobilite_val,        # Type de mobilité (Stage/Etudes)
-        "champ_Q2hhbXAtNjI2Njg2": date_depart,              # Date de départ
-        "champ_Q2hhbXAtNjI2Njg4": date_retour,              # Date de retour
+        "champ_Q2hhbXAtMzAwMjA2MA": est_apprenti,  # Est apprenti (true/false)
+        "champ_Q2hhbXAtMTAzMjQ0NQ": statut_apprenant,  # Statut basé sur est_apprenti
+        "champ_Q2hhbXAtNDcwODc3MA": "true",  # Champ booléen - doit être "true" au lieu de "Oui"
+        "champ_Q2hhbXAtNDcwODc3MQ": "true",  # Champ booléen - doit être "true" au lieu de "Oui"
+        "champ_Q2hhbXAtMjE0MTIxNg": mobilite_hybride,  # Mobilité hybride (true/false)
+        "champ_Q2hhbXAtNzEyMjc0": type_mobilite_val,  # Type de mobilité (toujours "Stage")
+        "champ_Q2hhbXAtNjI2Njg2": date_depart,  # Date de départ
+        "champ_Q2hhbXAtNjI2Njg4": date_retour,  # Date de retour
         "champ_Q2hhbXAtNDczNTI1MA": "Pays membre de l'Union Européenne",  # Valeur fixe
-        "champ_Q2hhbXAtNDczNTAyNg": pays_accueil            # Pays d'accueil
+        "champ_Q2hhbXAtNDczNTAyNg": pays_accueil  # Pays d'accueil
     }
     
     # Filtrer les champs None pour éviter des problèmes d'API
@@ -150,6 +149,54 @@ def generate_prefilled_url(data_dict):
     except Exception as e:
         return False, f"Exception: {str(e)}"
 
+def generate_short_url(data_dict):
+    """
+    Génère une URL courte et explicite pour un dossier pré-rempli.
+    Inclut le nom de l'apprenant dans l'URL pour une meilleure lisibilité.
+    
+    Args:
+        data_dict (dict): Dictionnaire des données du formulaire
+        
+    Returns:
+        tuple: (success, result) où result est l'URL courte ou un message d'erreur
+    """
+    # D'abord, générer l'URL standard
+    success, url = generate_prefilled_url(data_dict)
+    
+    if not success:
+        return False, url  # Renvoyer l'erreur
+    
+    try:
+        # Extraire le nom et le prénom pour un lien plus descriptif
+        nom = data_dict.get("nom", "").lower().replace(" ", "-")
+        prenom = data_dict.get("prenom", "").lower().replace(" ", "-")
+        
+        # Construire un identifiant unique en utilisant la date de départ
+        date_depart = data_dict.get("date_depart", "")
+        if date_depart:
+            # Convertir la date en chaîne sans séparateurs pour l'URL
+            if isinstance(date_depart, str):
+                date_str = date_depart.replace("-", "")[:8]  # Format YYYYMMDD
+            else:
+                date_str = date_depart.strftime("%Y%m%d")
+        else:
+            # Utiliser la date actuelle si la date de départ n'est pas disponible
+            date_str = datetime.now().strftime("%Y%m%d")
+        
+        # Créer un identifiant unique pour l'URL
+        nom_url = f"{prenom}-{nom}-{date_str}"
+        
+        # Construire l'URL courte en intégrant l'identifiant
+        # Comme nous ne pouvons pas vraiment raccourcir l'URL de Démarches Simplifiées,
+        # nous allons simplement ajouter cet identifiant comme ancre à l'URL
+        short_url = f"{url}#{nom_url}"
+        
+        return True, short_url
+    except Exception as e:
+        print(f"Erreur lors de la génération de l'URL courte: {e}")
+        # En cas d'erreur, revenir à l'URL standard
+        return success, url
+
 def test_api_connection():
     """
     Teste la connexion à l'API avec des données factices.
@@ -164,11 +211,11 @@ def test_api_connection():
         "prenom": "Jean",
         "date_naissance": "1990-01-01",
         "format_mobilite": "Mobilité hybride",
-        "mobilite_apprenant": "Mobilité de stage (SMT)",
+        "mobilite_apprenant": "Concours de compétence",  # Test avec cette valeur
         "date_depart": "2025-03-01",
         "date_retour": "2025-04-30",
         "pays_accueil": "Irlande",
-        "statut_participant": "Apprenant"
+        "statut_participant": "Apprenant"  # Pas un apprenti, donc Élève
     }
     
     return generate_prefilled_url(test_data)
