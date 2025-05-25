@@ -832,7 +832,7 @@ with tab2:
         # Convertir les liens en liens cliquables
         def make_clickable(val):
             if val and isinstance(val, str) and val.startswith("http"):
-                return f'<a href="{val}" target="_blank">Ouvrir le lien</a>'
+                return f'<a href="{val}" target="_blank">Ouvrir le formulaire DGER</a>'
             return val
         
         # Appliquer la fonction aux liens
