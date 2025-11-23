@@ -1,11 +1,11 @@
 import streamlit as st
 
-# Configuration de la page - DOIT ÊTRE LA PREMIÈRE COMMANDE STREAMLIT
+# Configuration de la page - DOIT ETRE LA PREMIERE COMMANDE STREAMLIT
 st.set_page_config(
     page_title="Moow Sup x DS DGER", 
-    page_icon="🐺",
+    page_icon="🐮",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 ## Simulateur Démarches Simplifiées avec Streamlit pour ERASMIP.
@@ -15,7 +15,7 @@ st.set_page_config(
 import os
 from dotenv import load_dotenv
 import ds_prefiller
-import mysql_connector
+import grist_connector
 import re
 from datetime import datetime
 import pandas as pd
@@ -170,7 +170,7 @@ def load_css():
         border-bottom: 2px solid #ddd;
     }
     
-    /* Style pour les en-têtes des numéros de ligne */
+    /* Style pour les en-tÃªtes des numéros de ligne */
     .dataframe thead tr:first-child th:first-child {
         background-color: #f5f5f5;
         color: #333;
@@ -246,42 +246,41 @@ def load_css():
     </style>
     """, unsafe_allow_html=True)
 
-# Validation de l'entrée
-def is_valid_name(name):
-    """Vérifie si le nom est valide (non vide et composé de lettres)"""
-    return bool(name) and all(c.isalpha() or c.isspace() or c == '-' or c == "'" for c in name)
 
-# Fonction pour formatter l'affichage des dates et autres valeurs
+def is_valid_name(name):
+    """Vérifie si un nom est valide (lettres uniquement)"""
+    import re
+    return bool(re.match(r'^[a-zA-ZÀ-ÿ\s\-]+$', name))
+
 def format_display_value(value, is_date=False):
     """
-    Formate une valeur pour l'affichage dans l'interface
-    
-    Args:
-        value: Valeur à formater
-        is_date: Si True, traite la valeur comme une date
-    
-    Returns:
-        str: Valeur formatée ou texte "Non renseigné" si vide
+    Formate une valeur pour l'affichage.
     """
     if not value or value == "None" or value == "null":
-        return "Non renseigné"
+        return '<span class="empty-field">Non renseigné</span>'
     
     if is_date:
+        from datetime import datetime
+        import re
         try:
-            # Essayer différents formats de date
-            date_formats = ["%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S"]
-            
-            for fmt in date_formats:
-                try:
-                    parsed_date = datetime.strptime(str(value), fmt)
-                    return parsed_date.strftime("%d/%m/%Y")  # Format DD/MM/YYYY pour l'affichage
-                except ValueError:
-                    continue
-                    
-            # Si aucun format ne correspond, renvoyer tel quel
-            return str(value)
-        except Exception:
-            return str(value)
+            if isinstance(value, str):
+                # Format ISO avec timezone (ex: 2025-04-05T19:56:27+02:00)
+                if "T" in value:
+                    # Supprimer la timezone avec regex
+                    date_str = re.sub(r'[+-]\d{2}:\d{2}$', '', value)
+                    # Parser avec ou sans secondes
+                    if '.' in date_str:
+                        date_obj = datetime.strptime(date_str.split('.')[0], "%Y-%m-%dT%H:%M:%S")
+                    else:
+                        date_obj = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+                    return date_obj.strftime("%d/%m/%Y")
+                else:
+                    # Format YYYY-MM-DD
+                    date_obj = datetime.strptime(value, "%Y-%m-%d")
+                    return date_obj.strftime("%d/%m/%Y")
+        except Exception as e:
+            print(f"Erreur format date {value}: {e}")
+            pass
     
     return str(value)
 
@@ -304,54 +303,6 @@ def verifier_champs_obligatoires():
             champs_manquants.append(display_name)
     
     return champs_manquants
-
-def update_sidebar():
-    """
-    Met à jour la barre latérale avec l'état des champs
-    """
-    form_data = st.session_state.form_data
-    
-    # Liste des champs à vérifier
-    fields_to_check = [
-        ("Civilité", "civilite"),
-        ("Nom", "nom"),
-        ("Prénom", "prenom"),
-        ("Date de naissance", "date_naissance"),
-        ("Type de mobilité", "type_mobilite_val"),
-        ("Mobilité hybride", "mobilite_hybride"),
-        ("Date de départ", "date_depart"),
-        ("Date de retour", "date_retour"),
-        ("Pays d'accueil", "pays_accueil"),
-        ("Établissement", "etablissement")  # Ajout de l'établissement
-    ]
-    
-    for display_name, field_name in fields_to_check:
-        value = form_data.get(field_name, "")
-        
-        if value and value != "None" and value != "null":
-            st.sidebar.markdown(f"""
-            <div style="margin-bottom:15px;">
-                <span style="display:inline-block; width:20px; height:20px; background-color:#18753c; color:white; border-radius:50%; text-align:center; line-height:20px; margin-right:10px;">✓</span>
-                <strong>{display_name}</strong><br/>
-                <span style="margin-left:30px;">Renseigné</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.sidebar.markdown(f"""
-            <div style="margin-bottom:15px;">
-                <span style="display:inline-block; width:20px; height:20px; background-color:#e0e0e0; color:#666; border-radius:50%; text-align:center; line-height:20px; margin-right:10px;">○</span>
-                <strong>{display_name}</strong><br/>
-                <span style="margin-left:30px;">Non renseigné</span>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Afficher source des données
-    if st.session_state.mysql_data_loaded:
-        st.sidebar.markdown(f"""
-        <div style="margin-top:30px; background-color:#e3f2fd; padding:10px; border-radius:4px;">
-            <strong>🔄 Données chargées </strong>
-        </div>
-        """, unsafe_allow_html=True)
 
 # Générer les URL de pré-remplissage pour chaque apprenant
 def generer_liens_pre_remplissage(apprenants):
@@ -409,7 +360,7 @@ if 'resultats_recherche_date' not in st.session_state:
     st.session_state.resultats_recherche_date = []
 if 'etablissements' not in st.session_state:
     # Charger la liste des établissements au démarrage
-    success, result = mysql_connector.obtenir_liste_etablissements()
+    success, result = grist_connector.obtenir_liste_etablissements()
     if success:
         st.session_state.etablissements = result
     else:
@@ -419,7 +370,7 @@ if 'etablissements' not in st.session_state:
 load_css()
 
 # Titre principal
-st.title("🐺 Moow Sup x DS DGER")
+st.title("🐮 Moow Sup x DS DGER")
 
 # Créer des onglets pour les différentes fonctionnalités
 tab1, tab2 = st.tabs(["Recherche par nom apprenant", "Recherche par date et établissement"])
@@ -439,7 +390,7 @@ with tab1:
         if nom_recherche and is_valid_name(nom_recherche):
             if 'nom_precedent' not in st.session_state or nom_recherche != st.session_state.nom_precedent:
                 with st.spinner("Recherche des établissements..."):
-                    success, result = mysql_connector.obtenir_etablissements_par_nom(nom_recherche.upper())
+                    success, result = grist_connector.obtenir_etablissements_par_nom(nom_recherche)
                     if success:
                         st.session_state.etablissements_filtres = result
                         st.session_state.nom_precedent = nom_recherche
@@ -487,13 +438,13 @@ with tab1:
         if not nom_recherche or not etablissement_recherche:
             st.markdown("""
             <div class="custom-alert">
-                <strong>⚠️ Veuillez remplir le nom de l'apprenant et sélectionner un établissement pour effectuer la recherche</strong>
+                <strong> Veuillez remplir le nom de l'apprenant et sélectionner un établissement pour effectuer la recherche</strong>
             </div>
             """, unsafe_allow_html=True)
         elif not is_valid_name(nom_recherche):
             st.markdown("""
             <div class="custom-alert">
-                <strong>⚠️ Format de nom invalide (utilisez seulement des lettres)</strong>
+                <strong> Format de nom invalide (utilisez seulement des lettres)</strong>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -503,8 +454,8 @@ with tab1:
             
             # Effectuer la recherche
             with st.spinner("Recherche en cours..."):
-                success, result = mysql_connector.valider_combinaison_nom_etablissement(
-                    nom_recherche.upper(),  # Convertir en majuscules pour correspondre au format de la BD
+                success, result = grist_connector.valider_combinaison_nom_etablissement(
+                    nom_recherche,
                     etablissement_recherche,
                     numero_dossier_recherche if numero_dossier_recherche else None
                 )
@@ -518,7 +469,7 @@ with tab1:
                     # Afficher un message d'information
                     st.markdown(f"""
                     <div class="info-box">
-                        <strong>📋 Plusieurs dossiers trouvés ({len(st.session_state.liste_dossiers)})</strong><br/>
+                        <strong>‹ Plusieurs dossiers trouvés ({len(st.session_state.liste_dossiers)})</strong><br/>
                         Veuillez sélectionner un dossier dans la liste ci-dessous.
                     </div>
                     """, unsafe_allow_html=True)
@@ -530,21 +481,21 @@ with tab1:
                     # Afficher un message de succès
                     st.markdown("""
                     <div class="success-message">
-                        <span>✓ Données récupérées avec succès!</span>
+                        <span>Données récupérées avec succès!</span>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     # Afficher les données trouvées
                     st.markdown("""
                     <div class="info-box">
-                        <strong>Données récupérées (MySQL)</strong><br/>
+                        <strong>Données récupérées (Grist)</strong><br/>
                         Les champs du formulaire vont être remplis automatiquement.
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div class="custom-alert">
-                    <strong>⚠️ Erreur lors de la recherche: {result}</strong>
+                    <strong>Erreur lors de la recherche: {result}</strong>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -559,7 +510,12 @@ with tab1:
             dossier_nom = dossier.get("nom", "")
             dossier_prenom = dossier.get("prenom", "")
             dossier_etablissement = dossier.get("etablissement", "")
-            dossier_date_depot = format_display_value(dossier.get("date_depot"), is_date=True)
+            
+            # La date est dans dossier["fields"], pas directement dans dossier
+            fields = dossier.get("fields", {})
+            date_depart_brute = fields.get("date_depart")
+            date_depart_iso = grist_connector.transformer_date(date_depart_brute)
+            dossier_date_depart = format_display_value(date_depart_iso, is_date=True)
             
             # Créer un conteneur pour chaque dossier
             dossier_container = st.container()
@@ -573,7 +529,7 @@ with tab1:
                         <strong>{dossier_nom} {dossier_prenom}</strong><br/>
                         <span>Numéro: {dossier_numero}</span><br/>
                         <span>Établissement: {dossier_etablissement}</span><br/>
-                        <span>Date de dépôt: {dossier_date_depot}</span>
+                        <span>Date de départ: {dossier_date_depart}</span>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -583,7 +539,7 @@ with tab1:
                         selected_fields = dossier.get("fields", {})
                         
                         # Mapper les données pour l'API
-                        mapped_data = mysql_connector.mapper_donnees_mobilite(selected_fields)
+                        mapped_data = grist_connector.mapper_donnees_mobilite(selected_fields)
                         
                         # Stocker les données et mettre à jour l'interface
                         st.session_state.form_data = mapped_data
@@ -683,11 +639,11 @@ with tab1:
             champs_str = ", ".join(champs_manquants)
             st.markdown(f"""
             <div class="custom-alert">
-                <strong>⚠️ Champs obligatoires manquants : {champs_str}</strong>
+                <strong>Champs obligatoires manquants : {champs_str}</strong>
             </div>
             """, unsafe_allow_html=True)
         
-        # Bouton pour générer le lien - ne pas désactiver même s'il manque des champs
+        # Bouton pour générer le lien - ne pas désactiver mÃªme s'il manque des champs
         if st.button("Générer le lien vers le dossier pré-rempli"):
             # Préparer les données du formulaire
             form_data = st.session_state.form_data
@@ -702,14 +658,14 @@ with tab1:
                 st.session_state.dossier_url = result
                 st.rerun()
             else:
-                st.error(f"❌ Erreur: {result}")
+                st.error(f" Erreur: {result}")
 
     # Interface de résultat si le lien a été généré
     if st.session_state.generate_success:
         # Afficher le message de succès
         st.markdown("""
         <div class="success-message">
-            <span>✓ Traitement terminé avec succès!</span>
+            <span>Traitement terminé avec succès!</span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -733,9 +689,6 @@ with tab1:
             st.session_state.dossier_url = ""
             st.rerun()
 
-    # Mise à jour des informations dans la sidebar
-    update_sidebar()
-
 #################################################
 # ONGLET 2: RECHERCHE PAR DATE ET ÉTABLISSEMENT #
 #################################################
@@ -753,16 +706,47 @@ with tab2:
             format="DD-MM-YYYY",
             key="date_depart_recherche"
         )
+        
+        # Filtrer les établissements par date si une date est saisie
+        if date_depart:
+            date_str = date_depart.strftime("%Y-%m-%d")
+            # Vérifier si la date a changé
+            if 'date_precedente' not in st.session_state or date_str != st.session_state.date_precedente:
+                with st.spinner("Recherche des établissements pour cette date..."):
+                    # Récupérer tous les enregistrements pour cette date
+                    success, result = grist_connector.rechercher_apprenants_par_date_et_etablissement(
+                        date_str,
+                        None  # On veut tous les établissements pour cette date
+                    )
+                    if success and result:
+                        # Extraire la liste unique des établissements
+                        etablissements_date = sorted(list(set([app.get("etablissement") for app in result if app.get("etablissement")])))
+                        st.session_state.etablissements_filtres_date = etablissements_date
+                        st.session_state.date_precedente = date_str
+                    else:
+                        st.session_state.etablissements_filtres_date = []
     
     with col2:
         # Sélecteur d'établissement
-        if 'etablissements' in st.session_state and st.session_state.etablissements:
+        if date_depart and 'etablissements_filtres_date' in st.session_state and st.session_state.etablissements_filtres_date:
+            # Utiliser la liste filtrée par date
+            etablissement_date = st.selectbox(
+                "Établissement", 
+                options=[""] + st.session_state.etablissements_filtres_date,
+                index=0,
+                help=f"Établissements ayant des départs le {date_depart.strftime('%d/%m/%Y')}",
+                key="etablissement_date_recherche"
+            )
+            if st.session_state.etablissements_filtres_date:
+                st.success(f"{len(st.session_state.etablissements_filtres_date)} établissement(s) avec départs à cette date")
+        elif 'etablissements' in st.session_state and st.session_state.etablissements:
+            # Utiliser la liste complète
             etablissement_date = st.selectbox(
                 "Établissement", 
                 options=[""] + st.session_state.etablissements,
                 index=0,
                 help="Établissement des apprenants à rechercher",
-                key="etablissement_date_recherche"
+                key="etablissement_date_recherche_full"
             )
         else:
             etablissement_date = st.text_input(
@@ -776,16 +760,16 @@ with tab2:
         if not date_depart or not etablissement_date:
             st.markdown("""
             <div class="custom-alert">
-                <strong>⚠️ Veuillez sélectionner une date de départ et un établissement pour effectuer la recherche</strong>
+                <strong>Veuillez sélectionner une date de départ et un établissement pour effectuer la recherche</strong>
             </div>
             """, unsafe_allow_html=True)
         else:
-            # Convertir la date en chaîne au format YYYY-MM-DD (pour MySQL)
+            # Convertir la date en chaîne au format YYYY-MM-DD
             date_str = date_depart.strftime("%Y-%m-%d")
             
             # Effectuer la recherche
             with st.spinner("Recherche des apprenants en cours..."):
-                success, result = mysql_connector.rechercher_apprenants_par_date_et_etablissement(
+                success, result = grist_connector.rechercher_apprenants_par_date_et_etablissement(
                     date_str,
                     etablissement_date
                 )
@@ -797,13 +781,13 @@ with tab2:
                 # Afficher un message de succès
                 st.markdown(f"""
                 <div class="success-message">
-                    <span>✓ {len(result)} apprenant(s) trouvé(s) et {len(st.session_state.resultats_recherche_date)} lien(s) généré(s)</span>
+                    <span>{len(result)} apprenant(s) trouvé(s) et {len(st.session_state.resultats_recherche_date)} lien(s) généré(s)</span>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div class="custom-alert">
-                    <strong>⚠️ {result}</strong>
+                    <strong>{result}</strong>
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -832,7 +816,7 @@ with tab2:
         # Convertir les liens en liens cliquables
         def make_clickable(val):
             if val and isinstance(val, str) and val.startswith("http"):
-                return f'<a href="{val}" target="_blank">Ouvrir le formulaire DGER</a>'
+                return f'<a href="{val}" target="_blank">Ouvrir le lien</a>'
             return val
         
         # Appliquer la fonction aux liens
@@ -860,9 +844,9 @@ with tab2:
 # Pied de page avec copyright
 st.markdown("""
 <div class="footer">
-    © 2025 Creative Commons Attribution (CC BY) 
+    (c) 2025 Creative Commons Attribution (CC BY) 
     <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" class="cc-icon" alt="CC">
     <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" class="cc-icon" alt="BY">
-    DRAAF Occitanie × ENSFEA - Tous droits réservés
+    DRAAF Occitanie x ENSFEA - Tous droits réservés
 </div>
 """, unsafe_allow_html=True)
