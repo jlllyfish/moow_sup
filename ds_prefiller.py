@@ -60,6 +60,9 @@ def generate_prefilled_url(data_dict):
     
     # Extraire les données et appliquer les transformations
     civilite = data_dict.get("civilite", "")
+    # Normaliser la civilité : "M" -> "M.", "Mme" reste "Mme"
+    if civilite == "M":
+        civilite = "M."
     nom = data_dict.get("nom", "")
     prenom = data_dict.get("prenom", "")
     date_naissance = transformer_date(data_dict.get("date_naissance"))
