@@ -384,7 +384,7 @@ with tab1:
     # Formulaire de recherche
     col1, col2 = st.columns(2)
     with col1:
-        nom_recherche = st.text_input("Nom apprenant", help="Nom de famille associé au dossier", key="nom_recherche")
+        nom_recherche = st.text_input("Nom apprenant (en Majuscule)", help="Nom de famille associé au dossier", key="nom_recherche")
         
         # Vérifier si le nom a changé et est valide
         if nom_recherche and is_valid_name(nom_recherche):
@@ -841,5 +841,6 @@ st.markdown("""
     DRAAF Occitanie x ENSFEA - Tous droits réservés
 </div>
 """, unsafe_allow_html=True)
+
 
 
