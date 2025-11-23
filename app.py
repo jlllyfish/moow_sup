@@ -702,6 +702,7 @@ with tab2:
         # Sélecteur de date
         date_depart = st.date_input(
             "Date de départ", 
+            value=None,
             help="Date de départ des apprenants à rechercher",
             format="DD-MM-YYYY",
             key="date_depart_recherche"
@@ -840,4 +841,5 @@ st.markdown("""
     DRAAF Occitanie x ENSFEA - Tous droits réservés
 </div>
 """, unsafe_allow_html=True)
+
 
