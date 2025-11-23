@@ -99,7 +99,7 @@ def generate_prefilled_url(data_dict):
     est_apprenti = "true" if statut_participant and statut_participant.lower() == "apprenti" else "false"
     
     # Déterminer le statut en fonction de est_apprenti
-    statut_apprenant = "Apprenti" if est_apprenti == "true" else "Élève"
+    statut_apprenant = "Apprenti" if est_apprenti == "true" else "Étudiant"
     
     # Construction du dictionnaire de données EXACT comme dans le script original
     # Reproduire exactement la structure pour être sûr que ça fonctionne
@@ -231,3 +231,4 @@ if __name__ == "__main__":
         print(f"Test réussi ! URL générée : {result}")
     else:
         print(f"Échec du test : {result}")
+
