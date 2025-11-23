@@ -115,11 +115,11 @@ def transformer_date(date_val):
         
     try:
         # Si c'est un timestamp (Grist renvoie parfois des timestamps)
-        # Gère les entiers, flottants, et les chaÃ®nes numériques
+        # Gère les entiers, flottants, et les chaînes numériques
         if isinstance(date_val, (int, float)):
              return datetime.fromtimestamp(date_val).strftime("%Y-%m-%d")
         
-        # Si c'est une chaÃ®ne qui ressemble à un nombre (ex: "167888888")
+        # Si c'est une chaîne qui ressemble à un nombre (ex: "167888888")
         if isinstance(date_val, str) and date_val.replace('.', '', 1).isdigit():
             try:
                 return datetime.fromtimestamp(float(date_val)).strftime("%Y-%m-%d")
@@ -425,10 +425,57 @@ def mapper_donnees_mobilite(dossier_fields):
         "valeur_mobilite_apprenant": valeur_mobilite_apprenant,
         "est_apprenti": est_apprenti,
         "region": "Occitanie",
-        "statut": "Étudiant"
+        "statut": "étudiant"
     }
     
     return data_mappee
+
+def rechercher_dossier_par_numero(numero_dossier):
+    """
+    Recherche un dossier uniquement par son numéro.
+    """
+    try:
+        print(f"Recherche de dossier avec numéro: {numero_dossier}")
+        client = get_grist_client()
+        
+        filters = {COL_DOSSIER_NUMBER: numero_dossier}
+        records = client.get_records(filters)
+        
+        if not records:
+            return False, "Aucun dossier trouvé avec ce numéro."
+        
+        if len(records) > 1:
+            # Plusieurs dossiers avec le même numéro (ne devrait pas arriver)
+            dossiers = []
+            for record in records:
+                fields = record.get("fields", {})
+                dossier_info = {
+                    "id": record.get("id"),
+                    "numero": fields.get(COL_DOSSIER_NUMBER),
+                    "nom": fields.get(COL_NOM),
+                    "prenom": fields.get(COL_PRENOM),
+                    "etablissement": fields.get(COL_EPLEFPA),
+                    "date_depart": fields.get(COL_DATE_DEPART),
+                    "fields": fields
+                }
+                dossiers.append(dossier_info)
+            return True, {"multiple": True, "dossiers": dossiers}
+        
+        # Dossier unique
+        record = records[0]
+        dossier = record.get("fields", {})
+        dossier[COL_ID] = record.get("id")
+        
+        result = {
+            "id": dossier.get(COL_ID),
+            "fields": dossier
+        }
+        
+        return True, result
+    
+    except Exception as e:
+        print(f"Exception lors de la recherche du dossier: {str(e)}")
+        return False, f"Exception: {str(e)}"
 
 def valider_combinaison_nom_etablissement(nom, etablissement, numero_dossier=None):
     """
@@ -482,4 +529,4 @@ def test_grist_connection():
 if __name__ == "__main__":
     print("\n=== Test de connexion à Grist ===")
     success, result = test_grist_connection()
-    print(f"Résultat: {'Succès' if success else 'Échec'} - {result}")
+    print(f"Résultat: {'Succès' if success else 'échec'} - {result}")
