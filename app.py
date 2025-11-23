@@ -825,17 +825,7 @@ with tab2:
         
         # Afficher le tableau avec les liens cliquables
         st.write(df_display.to_html(escape=False), unsafe_allow_html=True)
-        
-        # Option pour télécharger les résultats en CSV
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Télécharger les résultats (CSV)",
-            data=csv,
-            file_name=f'apprenants_depart_{date_depart}_{etablissement_date}.csv',
-            mime='text/csv',
-            key="download_csv"
-        )
-        
+       
         # Bouton pour effacer les résultats
         if st.button("Effacer les résultats", key="clear_results"):
             st.session_state.resultats_recherche_date = []
@@ -850,3 +840,4 @@ st.markdown("""
     DRAAF Occitanie x ENSFEA - Tous droits réservés
 </div>
 """, unsafe_allow_html=True)
+
