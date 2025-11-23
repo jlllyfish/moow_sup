@@ -1,6 +1,6 @@
 import streamlit as st
 
-# Configuration de la page - DOIT ETRE LA PREMIERE COMMANDE STREAMLIT
+# Configuration de la page - DOIT ÃŠTRE LA PREMIÃˆRE COMMANDE STREAMLIT
 st.set_page_config(
     page_title="Moow Sup x DS DGER", 
     page_icon="🐮",
@@ -435,16 +435,53 @@ with tab1:
 
     # Bouton de recherche
     if st.button("Rechercher", key="btn_recherche"):
-        if not nom_recherche or not etablissement_recherche:
+        # Validation : soit (nom + établissement) soit numéro de dossier
+        if numero_dossier_recherche:
+            # Recherche par numéro uniquement
+            st.session_state.dossiers_multiples = False
+            st.session_state.liste_dossiers = []
+            
+            with st.spinner("Recherche en cours..."):
+                success, result = grist_connector.rechercher_dossier_par_numero(numero_dossier_recherche)
+            
+            if success:
+                if isinstance(result, dict) and result.get("multiple", False):
+                    st.session_state.dossiers_multiples = True
+                    st.session_state.liste_dossiers = result.get("dossiers", [])
+                    st.markdown(f"""
+                    <div class="info-box">
+                        <strong>Plusieurs dossiers trouvés ({len(st.session_state.liste_dossiers)})</strong><br/>
+                        Veuillez sélectionner un dossier dans la liste ci-dessous.
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Mapper les données
+                    dossier_fields = result.get("fields", {})
+                    mapped_data = grist_connector.mapper_donnees_mobilite(dossier_fields)
+                    st.session_state.form_data = mapped_data
+                    st.session_state.mysql_data_loaded = True
+                    st.markdown("""
+                    <div class="success-message">
+                        <span>✓ Données récupérées avec succès!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="custom-alert">
+                    <strong>Erreur: {result}</strong>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        elif not nom_recherche or not etablissement_recherche:
             st.markdown("""
             <div class="custom-alert">
-                <strong> Veuillez remplir le nom de l'apprenant et sélectionner un établissement pour effectuer la recherche</strong>
+                <strong>Veuillez remplir soit le numéro de dossier, soit (nom + établissement)</strong>
             </div>
             """, unsafe_allow_html=True)
         elif not is_valid_name(nom_recherche):
             st.markdown("""
             <div class="custom-alert">
-                <strong> Format de nom invalide (utilisez seulement des lettres)</strong>
+                <strong>Format de nom invalide (utilisez seulement des lettres)</strong>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -452,7 +489,7 @@ with tab1:
             st.session_state.dossiers_multiples = False
             st.session_state.liste_dossiers = []
             
-            # Effectuer la recherche
+            # Effectuer la recherche nom + établissement
             with st.spinner("Recherche en cours..."):
                 success, result = grist_connector.valider_combinaison_nom_etablissement(
                     nom_recherche,
@@ -469,7 +506,7 @@ with tab1:
                     # Afficher un message d'information
                     st.markdown(f"""
                     <div class="info-box">
-                        <strong>‹ Plusieurs dossiers trouvés ({len(st.session_state.liste_dossiers)})</strong><br/>
+                        <strong>Plusieurs dossiers trouvés ({len(st.session_state.liste_dossiers)})</strong><br/>
                         Veuillez sélectionner un dossier dans la liste ci-dessous.
                     </div>
                     """, unsafe_allow_html=True)
@@ -826,7 +863,7 @@ with tab2:
         
         # Afficher le tableau avec les liens cliquables
         st.write(df_display.to_html(escape=False), unsafe_allow_html=True)
-       
+        
         # Bouton pour effacer les résultats
         if st.button("Effacer les résultats", key="clear_results"):
             st.session_state.resultats_recherche_date = []
@@ -841,6 +878,3 @@ st.markdown("""
     DRAAF Occitanie x ENSFEA - Tous droits réservés
 </div>
 """, unsafe_allow_html=True)
-
-
-
